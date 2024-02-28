@@ -1,0 +1,300 @@
+package hw2;
+
+public class FuzzballGame {
+	public static final int MAX_BALLS = 4;
+	public static final int MAX_OUTS = 3;
+	public static final int MAX_STRIKES = 3;
+	private int b0 = 0; // Batter, not yet on base
+	private int b1 = 0; // First base
+	private int b2 = 0; // Second base
+	private int b3 = 0; // Third base
+	private int h = 0;  // Home plate
+	private int inning = 1;
+	private boolean topOfInning = true;
+	private int outs = 0;
+	private int strikes = 0;
+	private int balls = 0;
+	private int team0 = 0;
+	private int team1 = 0;
+	private final int totalInnings;
+	// Corrected to accurately represent bases
+	private boolean[] bases = new boolean[4]; // Three bases excluding home
+
+	public FuzzballGame(int totalInnings) {
+		this.totalInnings = totalInnings;
+	}
+
+	public void caughtFly() {
+		outs++;
+		if (outs >= MAX_OUTS) {
+			nextInning();
+		}
+	}
+	public void strike(boolean swung) {
+		if (gameEnded()) return;
+		if (swung || strikes >= MAX_STRIKES - 1) {
+			outs++;
+			strikes = 0;
+			if (outs >= MAX_OUTS) nextInning();
+		} else {
+			strikes++;
+		}
+	}
+
+	public void advanceRunnersOnHit() {
+	    // Increment score for runners reaching home
+	    if (b3 == 1) {
+	        h = 1; // Runner on third goes home
+	    }
+	    // Advance runners
+	    b3 = b2;
+	    b2 = b1;
+	    b1 = b0; // Batter advances to first base
+	    b0 = 1; // New batter comes up
+	    
+	    // Score any runners that reached home
+	    if (h == 1) {
+	        updateScore(topOfInning);
+	        h = 0; // Clear home after scoring
+	    }
+	}
+
+
+
+	public void advanceRunners(int numBases) {
+		// Temporarily track scores to handle multiple runners scoring
+		int scoresToAdd = 0;
+
+		// Handle the runners on base
+		for (int i = bases.length - 1; i >= 0; i--) {
+			if (bases[i]) {
+				if (i + numBases < bases.length) {
+					bases[i + numBases] = true; // Advance the runner
+				} else {
+					scoresToAdd++; // Runner scores
+				}
+				bases[i] = false; // Clear the previous base
+			}
+		}
+
+		// Handle the batter's hit
+		if (numBases >= 1) {
+			bases[numBases - 1] = true; // Batter takes the base
+		}
+
+		// Update the score based on runners scored
+		for (int i = 0; i < scoresToAdd; i++) {
+			updateScore(topOfInning);
+		}
+	}
+
+	private void nextInning() {
+		outs = 0; // Reset outs
+		strikes = 0; // Reset strikes
+		balls = 0; // Reset balls
+		clearBases(); // Clear bases for the next inning phase
+
+		if (topOfInning) {
+			topOfInning = false; // Switch to bottom of the inning without incrementing the inning number
+		} else {
+			topOfInning = true; // Switch to top of the next inning
+			inning++; // Increment the inning at the transition from bottom to top
+		}
+	}
+
+
+
+	public void calledStrike() {
+		strikes++;
+		if (strikes >= MAX_STRIKES) {
+			outs++;
+			strikes = 0; // Reset strikes for the next batter
+			if (outs >= MAX_OUTS) {
+				nextInning();
+			}
+		}
+	}
+	// Oversize the array to avoid bounds issues
+
+
+	public void hit(int distance) {
+		 if (gameEnded()) {
+		        return; // Exit the method if the game has ended
+		    }
+		// Check if it's a foul leading to an out
+		if (distance < 15) {
+			// This includes the case where the distance could be negative
+			outs++;
+			if (outs >= MAX_OUTS) {
+				nextInning();
+			}
+			// Reset strikes and balls for the next batter
+			strikes = 0;
+			balls = 0;
+			return; // Exit early since the batter is out
+		}
+
+		// Interpret the hit based on distance
+		if (distance >= 15 && distance < 150) {
+			// Single
+			advanceRunners(1);
+		} else if (distance >= 150 && distance < 200) {
+			// Double
+			advanceRunners(2);
+		} else if (distance >= 200 && distance < 250) {
+			// Triple
+			advanceRunners(3);
+		} else if (distance >= 250) {
+			// Home run
+			advanceRunners(4); // All runners including the batter score
+		}
+
+		// Reset strikes and balls for the next batter
+		strikes = 0;
+		balls = 0;
+	}
+
+
+
+
+	private void updateScore(boolean topOfInning) {
+		if (topOfInning) {
+			team0++;
+		} else {
+			team1++;
+		}
+	}
+
+
+
+
+	public void ball() {
+		balls++;
+		if (balls >= MAX_BALLS) {
+			balls = 0; // Reset the ball count after a walk
+			// Check if bases are loaded before advancing runners
+			boolean basesLoaded = bases[0] && bases[1] && bases[2];
+			if (basesLoaded) {
+				// If bases are loaded and the batter takes a walk, each runner advances one base
+				// This includes scoring the runner from third base
+				updateScore(topOfInning); // Score for the team currently at bat
+			} else {
+				// Advance runners logic, making room for the batter at first base
+				advanceRunnersOnWalk();
+			}
+		}
+	}
+	public void advanceRunnersOnWalk() {
+	    if (basesLoaded()) {
+	        h = 1; // Score the runner from third if bases are loaded
+	    }
+	    // Advance runners
+	    if (b3 == 1) h = 1; // Runner on third goes home
+	    b3 = b2;
+	    b2 = b1;
+	    b1 = b0; // Batter who was walked advances to first base
+	    b0 = 1; // Ready the next batter
+	    
+	    // Score any runners that reached home
+	    if (h == 1) {
+	        updateScore(topOfInning);
+	        h = 0; // Clear home after scoring
+	    }
+	}
+	public boolean basesLoaded() {
+	    return b1 == 1 && b2 == 1 && b3 == 1;
+	}
+
+
+
+	
+
+	public boolean isTopOfInning() {
+		return topOfInning;
+	}
+
+
+
+	public int getTeam0() {
+		return team0;
+	}
+
+	public void setTeam0(int team0) {
+		this.team0 = team0;
+	}
+
+
+
+	public void setTeam1(int team1) {
+		this.team1 = team1;
+	}
+
+	public int getCalledStrikes() {
+		return strikes;
+	}
+
+	public int getCurrentOuts() {
+		return outs;
+	}
+
+
+
+public int whichInning() {
+	return inning;
+}
+
+public int getBallCount() {
+	return balls;
+}
+
+public boolean runnerOnBase(int base) {
+	if (base >= 1 && base <= 3) {
+		return bases[base - 1];
+	}
+	return false;
+}
+
+public boolean gameEnded() {
+	return inning > totalInnings && !topOfInning;
+}
+
+private void clearBases() {
+	for (int i = 0; i < bases.length; i++) {
+		bases[i] = false;
+	}
+}
+public String getBases() {
+    StringBuilder basesString = new StringBuilder();
+    // Check each base (b1 to b3) and append 'X' if occupied ('1') or 'o' if not ('0')
+    basesString.append(b1 == 1 ? "X" : "o");
+    basesString.append(b2 == 1 ? "X" : "o");
+    basesString.append(b3 == 1 ? "X" : "o");
+    
+    return basesString.toString();
+}
+
+@Override
+public String toString() {
+    String inningPart = topOfInning ? "Top" : "Bottom";
+    // Use getBases() to reflect the current state of bases
+    String bases = getBases();
+    return String.format("Inning: %d %s, Bases: %s, Score: %d-%d, Balls: %d, Strikes: %d, Outs: %d", 
+                         inning, inningPart, bases, team0, team1, balls, strikes, outs);
+}
+
+
+
+
+
+
+
+public int getTeam0Score() {
+	return team0;
+}
+
+public int getTeam1Score() {
+	return team1;
+}
+
+
+}
